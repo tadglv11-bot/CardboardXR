@@ -12,18 +12,9 @@ jobs:
         with:
           lfs: true
 
-      - name: Setup Unity Cache
-        uses: actions/cache@v4
-        with:
-          path: Library
-          key: Library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
-          restore-keys: |
-            Library-
-
-      - name: Export Xcode Project from Unity
+      - name: Build Unity iOS Xcode Project
         uses: game-ci/unity-builder@v4
         env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
@@ -31,10 +22,9 @@ jobs:
           unityVersion: 6000.6.0f1
           buildName: CardboardXR
 
-      - name: Build and Package IPA
+      - name: Compile and Package IPA
         run: |
           cd build/iOS
-          # Compilazione Xcode senza firma obbligatoria
           xcodebuild -project Unity-iPhone.xcodeproj \
                      -scheme Unity-iPhone \
                      -configuration Release \
@@ -43,11 +33,10 @@ jobs:
                      CODE_SIGNING_REQUIRED=NO \
                      build
           
-          # Creazione della cartella Payload per l'IPA
           mkdir -p Payload
           cp -r build/Release-iphoneos/CardboardXR.app Payload/
           zip -r CardboardXR.ipa Payload
-          
+
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
