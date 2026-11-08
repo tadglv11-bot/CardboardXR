@@ -1,0 +1,52 @@
+name: Build CardboardXR iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Unity Cache
+        uses: actions/cache@v3
+        with:
+          path: Library
+          key: Library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-
+
+      - name: Export Xcode Project from Unity
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+          targetPlatform: iOS
+          unityVersion: 6000.6.0f1
+
+      - name: Build and Package IPA for Sideloading
+        run: |
+          cd build/iOS
+          # Compila il progetto senza richiedere certificati Apple a pagamento
+          xcodebuild -project Unity-iPhone.xcodeproj \
+                     -scheme Unity-iPhone \
+                     -configuration Release \
+                     -sdk iphoneos \
+                     CODE_SIGNING_ALLOWED=NO \
+                     CODE_SIGNING_REQUIRED=NO \
+                     build
+          
+          # Impacchetta il bundle .app nel file .ipa compatibile con AltStore/SideStore
+          mkdir -p Payload
+          cp -r build/Release-iphoneos/CardboardXR.app Payload/
+          zip -r CardboardXR.ipa Payload
+          
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CardboardXR-iOS
+          path: build/iOS/CardboardXR.ipa
